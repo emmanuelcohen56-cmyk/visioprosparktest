@@ -17,24 +17,39 @@
       height: 100%;
       overflow: hidden;
       background: #000;
+      color: white;
+      font-family: Arial, sans-serif;
     }
 
     canvas {
       display: block;
       width: 100%;
       height: 100%;
+      touch-action: none;
     }
 
     #status {
       position: fixed;
-      top: 20px;
-      left: 20px;
-      z-index: 10;
+      top: 15px;
+      left: 15px;
+      z-index: 20;
       padding: 10px 14px;
-      color: white;
-      background: rgba(0, 0, 0, 0.65);
-      font-family: Arial, sans-serif;
+      background: rgba(0,0,0,0.65);
       border-radius: 8px;
+      pointer-events: none;
+    }
+
+    #instructions {
+      position: fixed;
+      bottom: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      padding: 10px 14px;
+      background: rgba(0,0,0,0.65);
+      border-radius: 8px;
+      text-align: center;
+      pointer-events: none;
     }
   </style>
 
@@ -53,93 +68,221 @@
 
 <div id="status">Chargement du manoir...</div>
 
+<div id="instructions">
+  WASD = déplacement • souris = regarder
+</div>
+
 <script type="module">
 
-  import * as THREE from "three";
+import * as THREE from "three";
 
-  import {
-    SparkRenderer,
-    SplatMesh
-  } from "@sparkjsdev/spark";
-
-
-  // SCENE
-  const scene = new THREE.Scene();
+import {
+  SparkRenderer,
+  SplatMesh,
+  SparkControls,
+  SparkXr
+} from "@sparkjsdev/spark";
 
 
-  // CAMERA
-  const camera = new THREE.PerspectiveCamera(
-    70,
-    window.innerWidth / window.innerHeight,
-    0.01,
-    1000
-  );
+// --------------------------------------------------
+// SCÈNE
+// --------------------------------------------------
 
-  camera.position.set(0, 1.6, 3);
+const scene = new THREE.Scene();
 
 
-  // RENDERER
-  const renderer = new THREE.WebGLRenderer({
-    antialias: false,
-    powerPreference: "high-performance"
-  });
+// --------------------------------------------------
+// CAMÉRA
+// --------------------------------------------------
 
-  renderer.setPixelRatio(1);
-
-  renderer.setSize(
-    window.innerWidth,
-    window.innerHeight
-  );
-
-  renderer.xr.enabled = true;
-
-  document.body.appendChild(renderer.domElement);
+const camera = new THREE.PerspectiveCamera(
+  75,
+  window.innerWidth / window.innerHeight,
+  0.01,
+  1000
+);
 
 
-  // SPARK
-  const spark = new SparkRenderer({
-    renderer: renderer
-  });
+// --------------------------------------------------
+// LOCAL FRAME
+//
+// C'est notre futur "wagon".
+// La caméra est à l'intérieur.
+// En VR, le Vision Pro pourra bouger la tête
+// indépendamment du déplacement de ce groupe.
+// --------------------------------------------------
 
-  scene.add(spark);
+const localFrame = new THREE.Group();
 
+scene.add(localFrame);
 
-  // TON SPZ ORIGINAL + LOD
-  const mansion = new SplatMesh({
-
-    url:
-      "https://pub-95b1d37c5acf4cec9c0b743e39d67c63.r2.dev/test%20fatHaunted%20Mansion%20Stretching%20Room.spz",
-
-    lod: true
-
-  });
-
-  scene.add(mansion);
+localFrame.add(camera);
 
 
-  // CHARGEMENT
-  try {
+// Position initiale du wagon
+localFrame.position.set(0, 0, 3);
 
-    await mansion.initialized;
+// Hauteur des yeux
+camera.position.set(0, 1.6, 0);
 
-    document.getElementById("status").textContent =
-      "Manoir chargé - LOD Spark actif";
 
-  } catch (error) {
+// --------------------------------------------------
+// RENDERER THREE
+// --------------------------------------------------
 
-    console.error("Erreur chargement SPZ :", error);
+const renderer = new THREE.WebGLRenderer({
+  antialias: false,
+  powerPreference: "high-performance"
+});
 
-    document.getElementById("status").textContent =
-      "ERREUR - regarde la Console";
+renderer.setPixelRatio(1);
+
+renderer.setSize(
+  window.innerWidth,
+  window.innerHeight
+);
+
+document.body.appendChild(renderer.domElement);
+
+
+// --------------------------------------------------
+// SPARK RENDERER
+// --------------------------------------------------
+
+const spark = new SparkRenderer({
+
+  renderer,
+
+  // Réduit légèrement l'étendue rasterisée des
+  // Gaussians pour gagner en performance.
+  maxStdDev: Math.sqrt(4),
+
+  view: {
+    sort360: true,
+    sort32: true
+  }
+
+});
+
+scene.add(spark);
+
+
+// --------------------------------------------------
+// TON MANOIR
+// --------------------------------------------------
+
+const mansion = new SplatMesh({
+
+  url:
+    "https://pub-95b1d37c5acf4cec9c0b743e39d67c63.r2.dev/test%20fatHaunted%20Mansion%20Stretching%20Room.spz",
+
+  // IMPORTANT :
+  // génération automatique du LOD
+  lod: true
+
+});
+
+scene.add(mansion);
+
+
+// --------------------------------------------------
+// CONTRÔLES PC
+// --------------------------------------------------
+
+const controls = new SparkControls({
+  canvas: renderer.domElement
+});
+
+// Souris un peu plus sensible
+controls.pointerControls.rotateSpeed *= 2;
+
+
+// --------------------------------------------------
+// WEBXR / VISION PRO
+// --------------------------------------------------
+
+const xr = new SparkXr({
+
+  renderer,
+
+  referenceSpaceType: "local-floor",
+
+  frameBufferScaleFactor: 0.7,
+
+  onReady: (supported) => {
+
+    if (supported) {
+
+      document.getElementById("instructions").innerHTML =
+        "ENTER VR pour entrer dans le manoir";
+
+    } else {
+
+      document.getElementById("instructions").innerHTML =
+        "WASD = déplacement • souris = regarder";
+
+    }
+
+  },
+
+  onEnterXr: () => {
+
+    document.getElementById("status").style.display =
+      "none";
+
+    document.getElementById("instructions").style.display =
+      "none";
+
+  },
+
+  onExitXr: () => {
+
+    document.getElementById("status").style.display =
+      "block";
+
+    document.getElementById("instructions").style.display =
+      "block";
 
   }
 
+});
 
-  // REDIMENSIONNEMENT
-  window.addEventListener("resize", () => {
+
+// --------------------------------------------------
+// CHARGEMENT DU SPZ + LOD
+// --------------------------------------------------
+
+try {
+
+  await mansion.initialized;
+
+  document.getElementById("status").textContent =
+    "Manoir chargé - LOD Spark actif";
+
+} catch (error) {
+
+  console.error(
+    "Erreur chargement SPZ :",
+    error
+  );
+
+  document.getElementById("status").textContent =
+    "ERREUR - regarde la Console";
+
+}
+
+
+// --------------------------------------------------
+// RESIZE
+// --------------------------------------------------
+
+window.addEventListener(
+  "resize",
+  () => {
 
     camera.aspect =
-      window.innerWidth / window.innerHeight;
+      window.innerWidth /
+      window.innerHeight;
 
     camera.updateProjectionMatrix();
 
@@ -148,18 +291,47 @@
       window.innerHeight
     );
 
-  });
+  }
+);
 
 
-  // BOUCLE DE RENDU
-  renderer.setAnimationLoop(() => {
+// --------------------------------------------------
+// BOUCLE
+// --------------------------------------------------
 
-    renderer.render(
-      scene,
-      camera
+let lastTime = performance.now();
+
+renderer.setAnimationLoop((time) => {
+
+  const deltaTime =
+    Math.min(
+      (time - lastTime) / 1000,
+      0.1
     );
 
-  });
+  lastTime = time;
+
+
+  // Hors VR :
+  // clavier + souris déplacent le wagon entier.
+  //
+  // La caméra reste enfant du wagon.
+  if (!renderer.xr.isPresenting) {
+
+    controls.update(
+      deltaTime,
+      localFrame
+    );
+
+  }
+
+
+  renderer.render(
+    scene,
+    camera
+  );
+
+});
 
 </script>
 
