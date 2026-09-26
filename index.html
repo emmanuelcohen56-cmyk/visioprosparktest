@@ -2,11 +2,8 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1, viewport-fit=cover"
-  >
+  <meta name="viewport"
+        content="width=device-width,initial-scale=1,viewport-fit=cover">
 
   <title>Haunted Mansion - Spark VR</title>
 
@@ -16,7 +13,7 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #000;
+      background: black;
       color: white;
       font-family: Arial, sans-serif;
     }
@@ -25,7 +22,6 @@
       display: block;
       width: 100%;
       height: 100%;
-      touch-action: none;
     }
 
     #status {
@@ -34,21 +30,35 @@
       left: 15px;
       z-index: 20;
       padding: 10px 14px;
-      background: rgba(0,0,0,0.65);
+      background: rgba(0,0,0,.7);
       border-radius: 8px;
       pointer-events: none;
     }
 
-    #instructions {
+    #help {
       position: fixed;
-      bottom: 15px;
+      bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
       z-index: 20;
-      padding: 10px 14px;
-      background: rgba(0,0,0,0.65);
+      padding: 12px 16px;
+      background: rgba(0,0,0,.7);
       border-radius: 8px;
       text-align: center;
+      pointer-events: none;
+    }
+
+    #crosshair {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      width: 6px;
+      height: 6px;
+      margin-left: -3px;
+      margin-top: -3px;
+      border-radius: 50%;
+      background: white;
+      z-index: 20;
       pointer-events: none;
     }
   </style>
@@ -56,9 +66,14 @@
   <script type="importmap">
   {
     "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
-      "@sparkjsdev/spark": "https://sparkjs.dev/releases/spark/2.2.0/spark.module.js"
+      "three":
+        "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+
+      "three/addons/":
+        "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+
+      "@sparkjsdev/spark":
+        "https://sparkjs.dev/releases/spark/2.2.0/spark.module.js"
     }
   }
   </script>
@@ -68,9 +83,12 @@
 
 <div id="status">Chargement du manoir...</div>
 
-<div id="instructions">
-  WASD = déplacement • souris = regarder
+<div id="help">
+  Clique dans l'image<br>
+  WASD = déplacement • Souris = regarder • Shift = rapide
 </div>
+
+<div id="crosshair"></div>
 
 <script type="module">
 
@@ -78,22 +96,24 @@ import * as THREE from "three";
 
 import {
   SparkRenderer,
-  SplatMesh,
-  SparkControls,
-  SparkXr
+  SplatMesh
 } from "@sparkjsdev/spark";
 
+import {
+  PointerLockControls
+} from "three/addons/controls/PointerLockControls.js";
 
-// --------------------------------------------------
-// SCÈNE
-// --------------------------------------------------
+
+// ======================================================
+// SCENE
+// ======================================================
 
 const scene = new THREE.Scene();
 
 
-// --------------------------------------------------
-// CAMÉRA
-// --------------------------------------------------
+// ======================================================
+// CAMERA
+// ======================================================
 
 const camera = new THREE.PerspectiveCamera(
   75,
@@ -103,14 +123,9 @@ const camera = new THREE.PerspectiveCamera(
 );
 
 
-// --------------------------------------------------
-// LOCAL FRAME
-//
-// C'est notre futur "wagon".
-// La caméra est à l'intérieur.
-// En VR, le Vision Pro pourra bouger la tête
-// indépendamment du déplacement de ce groupe.
-// --------------------------------------------------
+// ======================================================
+// FUTUR WAGON / XR RIG
+// ======================================================
 
 const localFrame = new THREE.Group();
 
@@ -119,20 +134,35 @@ scene.add(localFrame);
 localFrame.add(camera);
 
 
-// Position initiale du wagon
-localFrame.position.set(0, 0, 3);
+// Position de départ
+
+localFrame.position.set(
+  0,
+  0,
+  3
+);
+
 
 // Hauteur des yeux
-camera.position.set(0, 1.6, 0);
+
+camera.position.set(
+  0,
+  1.6,
+  0
+);
 
 
-// --------------------------------------------------
-// RENDERER THREE
-// --------------------------------------------------
+// ======================================================
+// RENDERER
+// ======================================================
 
 const renderer = new THREE.WebGLRenderer({
+
   antialias: false,
-  powerPreference: "high-performance"
+
+  powerPreference:
+    "high-performance"
+
 });
 
 renderer.setPixelRatio(1);
@@ -142,42 +172,35 @@ renderer.setSize(
   window.innerHeight
 );
 
-document.body.appendChild(renderer.domElement);
+renderer.xr.enabled = true;
+
+document.body.appendChild(
+  renderer.domElement
+);
 
 
-// --------------------------------------------------
-// SPARK RENDERER
-// --------------------------------------------------
+// ======================================================
+// SPARK
+// ======================================================
 
 const spark = new SparkRenderer({
 
-  renderer,
-
-  // Réduit légèrement l'étendue rasterisée des
-  // Gaussians pour gagner en performance.
-  maxStdDev: Math.sqrt(4),
-
-  view: {
-    sort360: true,
-    sort32: true
-  }
+  renderer
 
 });
 
 scene.add(spark);
 
 
-// --------------------------------------------------
-// TON MANOIR
-// --------------------------------------------------
+// ======================================================
+// TON MANOIR SPZ + LOD
+// ======================================================
 
 const mansion = new SplatMesh({
 
   url:
     "https://pub-95b1d37c5acf4cec9c0b743e39d67c63.r2.dev/test%20fatHaunted%20Mansion%20Stretching%20Room.spz",
 
-  // IMPORTANT :
-  // génération automatique du LOD
   lod: true
 
 });
@@ -185,96 +208,118 @@ const mansion = new SplatMesh({
 scene.add(mansion);
 
 
-// --------------------------------------------------
-// CONTRÔLES PC
-// --------------------------------------------------
+// ======================================================
+// SOURIS
+// ======================================================
 
-const controls = new SparkControls({
-  canvas: renderer.domElement
-});
+const controls =
+  new PointerLockControls(
+    camera,
+    renderer.domElement
+  );
 
-// Souris un peu plus sensible
-controls.pointerControls.rotateSpeed *= 2;
 
+// Un clic dans l'image capture la souris
 
-// --------------------------------------------------
-// WEBXR / VISION PRO
-// --------------------------------------------------
+renderer.domElement.addEventListener(
+  "click",
+  () => {
 
-const xr = new SparkXr({
-
-  renderer,
-
-  referenceSpaceType: "local-floor",
-
-  frameBufferScaleFactor: 0.7,
-
-  onReady: (supported) => {
-
-    if (supported) {
-
-      document.getElementById("instructions").innerHTML =
-        "ENTER VR pour entrer dans le manoir";
-
-    } else {
-
-      document.getElementById("instructions").innerHTML =
-        "WASD = déplacement • souris = regarder";
-
+    if (!renderer.xr.isPresenting) {
+      controls.lock();
     }
 
-  },
+  }
+);
 
-  onEnterXr: () => {
 
-    document.getElementById("status").style.display =
-      "none";
+controls.addEventListener(
+  "lock",
+  () => {
 
-    document.getElementById("instructions").style.display =
-      "none";
-
-  },
-
-  onExitXr: () => {
-
-    document.getElementById("status").style.display =
-      "block";
-
-    document.getElementById("instructions").style.display =
-      "block";
+    document.getElementById(
+      "help"
+    ).style.display = "none";
 
   }
+);
 
-});
+
+controls.addEventListener(
+  "unlock",
+  () => {
+
+    document.getElementById(
+      "help"
+    ).style.display = "block";
+
+  }
+);
 
 
-// --------------------------------------------------
-// CHARGEMENT DU SPZ + LOD
-// --------------------------------------------------
+// ======================================================
+// CLAVIER
+// ======================================================
+
+const keys = {};
+
+window.addEventListener(
+  "keydown",
+  (event) => {
+
+    keys[
+      event.code
+    ] = true;
+
+  }
+);
+
+
+window.addEventListener(
+  "keyup",
+  (event) => {
+
+    keys[
+      event.code
+    ] = false;
+
+  }
+);
+
+
+// ======================================================
+// CHARGEMENT
+// ======================================================
 
 try {
 
   await mansion.initialized;
 
-  document.getElementById("status").textContent =
+  document.getElementById(
+    "status"
+  ).textContent =
     "Manoir chargé - LOD Spark actif";
 
-} catch (error) {
+}
+
+catch (error) {
 
   console.error(
-    "Erreur chargement SPZ :",
+    "Erreur SPZ :",
     error
   );
 
-  document.getElementById("status").textContent =
+  document.getElementById(
+    "status"
+  ).textContent =
     "ERREUR - regarde la Console";
 
 }
 
 
-// --------------------------------------------------
+// ======================================================
 // RESIZE
-// --------------------------------------------------
+// ======================================================
 
 window.addEventListener(
   "resize",
@@ -295,43 +340,180 @@ window.addEventListener(
 );
 
 
-// --------------------------------------------------
-// BOUCLE
-// --------------------------------------------------
+// ======================================================
+// DEPLACEMENT
+// ======================================================
 
-let lastTime = performance.now();
-
-renderer.setAnimationLoop((time) => {
-
-  const deltaTime =
-    Math.min(
-      (time - lastTime) / 1000,
-      0.1
-    );
-
-  lastTime = time;
+const clock =
+  new THREE.Clock();
 
 
-  // Hors VR :
-  // clavier + souris déplacent le wagon entier.
-  //
-  // La caméra reste enfant du wagon.
-  if (!renderer.xr.isPresenting) {
+function updateMovement(delta) {
 
-    controls.update(
-      deltaTime,
-      localFrame
+  if (
+    renderer.xr.isPresenting
+  ) {
+    return;
+  }
+
+
+  let speed = 2.5;
+
+
+  if (
+    keys["ShiftLeft"] ||
+    keys["ShiftRight"]
+  ) {
+
+    speed = 7;
+
+  }
+
+
+  const distance =
+    speed * delta;
+
+
+  // Direction horizontale
+  // basée sur l'orientation de la caméra
+
+  const forward =
+    new THREE.Vector3();
+
+  camera.getWorldDirection(
+    forward
+  );
+
+  forward.y = 0;
+
+  forward.normalize();
+
+
+  const right =
+    new THREE.Vector3();
+
+  right.crossVectors(
+    forward,
+    camera.up
+  );
+
+  right.normalize();
+
+
+  // W / Z / flèche haut
+
+  if (
+    keys["KeyW"] ||
+    keys["KeyZ"] ||
+    keys["ArrowUp"]
+  ) {
+
+    localFrame.position.addScaledVector(
+      forward,
+      distance
     );
 
   }
 
 
-  renderer.render(
-    scene,
-    camera
-  );
+  // S / flèche bas
 
-});
+  if (
+    keys["KeyS"] ||
+    keys["ArrowDown"]
+  ) {
+
+    localFrame.position.addScaledVector(
+      forward,
+      -distance
+    );
+
+  }
+
+
+  // A / Q / flèche gauche
+
+  if (
+    keys["KeyA"] ||
+    keys["KeyQ"] ||
+    keys["ArrowLeft"]
+  ) {
+
+    localFrame.position.addScaledVector(
+      right,
+      -distance
+    );
+
+  }
+
+
+  // D / flèche droite
+
+  if (
+    keys["KeyD"] ||
+    keys["ArrowRight"]
+  ) {
+
+    localFrame.position.addScaledVector(
+      right,
+      distance
+    );
+
+  }
+
+
+  // E = monter
+
+  if (
+    keys["KeyE"]
+  ) {
+
+    localFrame.position.y +=
+      distance;
+
+  }
+
+
+  // C = descendre
+
+  if (
+    keys["KeyC"]
+  ) {
+
+    localFrame.position.y -=
+      distance;
+
+  }
+
+}
+
+
+// ======================================================
+// RENDER LOOP
+// ======================================================
+
+renderer.setAnimationLoop(
+  () => {
+
+    const delta =
+      Math.min(
+        clock.getDelta(),
+        0.05
+      );
+
+
+    updateMovement(
+      delta
+    );
+
+
+    renderer.render(
+      scene,
+      camera
+    );
+
+  }
+);
 
 </script>
 
