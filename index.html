@@ -1,0 +1,151 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Haunted Mansion - Spark VR</title>
+
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: black;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    #status {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 10;
+      padding: 10px 14px;
+      color: white;
+      background: rgba(0,0,0,.65);
+      font-family: sans-serif;
+      border-radius: 8px;
+    }
+  </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three":
+        "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+
+      "@sparkjsdev/spark":
+        "https://sparkjs.dev/releases/spark/2.2.0/spark.module.js"
+    }
+  }
+  </script>
+</head>
+
+<body>
+
+<div id="status">Chargement du manoir…</div>
+
+<script type="module">
+
+import * as THREE from "three";
+import {
+  SparkRenderer,
+  SplatMesh
+} from "@sparkjsdev/spark";
+
+
+const scene = new THREE.Scene();
+
+
+const camera = new THREE.PerspectiveCamera(
+  70,
+  window.innerWidth / window.innerHeight,
+  0.01,
+  1000
+);
+
+camera.position.set(0, 1.6, 3);
+
+
+const renderer = new THREE.WebGLRenderer({
+  antialias: false,
+  powerPreference: "high-performance"
+});
+
+renderer.setPixelRatio(1);
+renderer.setSize(
+  window.innerWidth,
+  window.innerHeight
+);
+
+renderer.xr.enabled = true;
+
+document.body.appendChild(renderer.domElement);
+
+
+// SPARK
+const spark = new SparkRenderer({
+  renderer: renderer
+});
+
+scene.add(spark);
+
+
+// TON SPZ ORIGINAL 4,2 M
+const mansion = new SplatMesh({
+
+  url:
+  "https://github.com/emmanuelcohen56-cmyk/visioprosparktest/releases/download/V1/test.fatHaunted.Mansion.Stretching.Room.spz",
+
+  // IMPORTANT :
+  // Spark construit automatiquement le LOD
+  lod: true
+
+});
+
+scene.add(mansion);
+
+
+// Attend le chargement
+await mansion.initialized;
+
+document.getElementById("status").textContent =
+  "Manoir chargé - LOD Spark actif";
+
+
+// Resize
+window.addEventListener("resize", () => {
+
+  camera.aspect =
+    window.innerWidth / window.innerHeight;
+
+  camera.updateProjectionMatrix();
+
+  renderer.setSize(
+    window.innerWidth,
+    window.innerHeight
+  );
+
+});
+
+
+// Render
+renderer.setAnimationLoop(() => {
+
+  renderer.render(
+    scene,
+    camera
+  );
+
+});
+
+</script>
+
+</body>
+</html>
