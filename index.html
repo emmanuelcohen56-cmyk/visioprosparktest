@@ -2,63 +2,72 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover">
 
-<title>Haunted Mansion - Spark Ultimate</title>
+<title>Haunted Mansion - Vision Pro VR</title>
 
 <style>
-html, body {
-    margin: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    background: #000;
-    font-family: Arial, sans-serif;
+html,body {
+  margin:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:#000;
+  font-family:Arial,sans-serif;
 }
 
 canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
-    touch-action: none;
+  display:block;
+  width:100%;
+  height:100%;
+  touch-action:none;
 }
 
 #status {
-    position: fixed;
-    top: 12px;
-    left: 12px;
-    z-index: 100;
-    padding: 10px 12px;
-    background: rgba(0,0,0,.72);
-    color: white;
-    border-radius: 8px;
-    font-size: 14px;
-    pointer-events: none;
-    line-height: 1.45;
+  position:fixed;
+  top:15px;
+  left:15px;
+  z-index:20;
+  padding:10px 14px;
+  color:white;
+  background:rgba(0,0,0,.70);
+  border-radius:8px;
+  line-height:1.45;
 }
 
-#help {
-    position: fixed;
-    bottom: 12px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 100;
-    padding: 8px 12px;
-    background: rgba(0,0,0,.72);
-    color: white;
-    border-radius: 8px;
-    text-align: center;
-    font-size: 13px;
-    pointer-events: none;
+#vrButton {
+  position:fixed;
+  left:50%;
+  bottom:35px;
+  transform:translateX(-50%);
+  z-index:30;
+
+  padding:16px 28px;
+  border:0;
+  border-radius:12px;
+
+  font-size:20px;
+  font-weight:bold;
+
+  background:white;
+  color:black;
+
+  display:none;
 }
 </style>
 
 <script type="importmap">
 {
   "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
-    "@sparkjsdev/spark": "https://sparkjs.dev/releases/spark/2.2.0/spark.module.js"
+    "three":
+      "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+
+    "three/addons/":
+      "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+
+    "@sparkjsdev/spark":
+      "https://sparkjs.dev/releases/spark/2.2.0/spark.module.js"
   }
 }
 </script>
@@ -67,553 +76,673 @@ canvas {
 <body>
 
 <div id="status">
-    Chargement du manoir...
+Chargement du manoir...
 </div>
 
-<div id="help">
-    Xbox : sticks gauche/droit •
-    PC : ZQSD/WASD •
-    Souris : clic + glisser
-</div>
+<button id="vrButton">
+ENTER VR
+</button>
+
 
 <script type="module">
 
 import * as THREE from "three";
 
 import {
-    SparkRenderer,
-    SplatMesh
+  SparkRenderer,
+  SplatMesh
 } from "@sparkjsdev/spark";
 
 
-// ======================================================
+// =====================================================
 // SCENE
-// ======================================================
+// =====================================================
 
 const scene = new THREE.Scene();
 
 
-// ======================================================
-// CAMERA + LOCAL FRAME = FUTUR WAGON
-// ======================================================
+// =====================================================
+// XR RIG = NOTRE WAGON
+// =====================================================
+
+const wagon = new THREE.Group();
+
+scene.add(wagon);
+
+
+// La caméra reste ENFANT du wagon.
+//
+// WebXR contrôlera la position/orientation
+// de la tête à l'intérieur de ce wagon.
 
 const camera = new THREE.PerspectiveCamera(
-    75,
-    window.innerWidth / window.innerHeight,
-    0.01,
-    2000
+  75,
+  window.innerWidth / window.innerHeight,
+  0.01,
+  2000
 );
 
-const localFrame = new THREE.Group();
-
-scene.add(localFrame);
-localFrame.add(camera);
+wagon.add(camera);
 
 
-// Position de départ
-localFrame.position.set(0, 0, 3);
+// Position initiale du wagon
 
-// hauteur des yeux
-camera.position.set(0, 1.6, 0);
-
-
-// Rotation indépendante
-let yaw = 0;
-let pitch = 0;
+wagon.position.set(
+  0,
+  0,
+  3
+);
 
 
-// ======================================================
+// Hors VR seulement,
+// hauteur approximative des yeux.
+
+camera.position.set(
+  0,
+  1.6,
+  0
+);
+
+
+// =====================================================
 // RENDERER
-// ======================================================
+// =====================================================
 
-const renderer = new THREE.WebGLRenderer({
-    antialias: false,
-    powerPreference: "high-performance"
-});
+const renderer =
+  new THREE.WebGLRenderer({
+
+    antialias:false,
+
+    powerPreference:
+      "high-performance"
+
+  });
+
 
 renderer.setPixelRatio(1);
 
 renderer.setSize(
-    window.innerWidth,
-    window.innerHeight
+  window.innerWidth,
+  window.innerHeight
 );
 
-document.body.appendChild(renderer.domElement);
+
+// IMPORTANT WEBXR
+
+renderer.xr.enabled = true;
+
+renderer.xr.setReferenceSpaceType(
+  "local-floor"
+);
 
 
-// ======================================================
+document.body.appendChild(
+  renderer.domElement
+);
+
+
+// =====================================================
 // SPARK
-// ======================================================
+// =====================================================
 
-const spark = new SparkRenderer({
-    renderer: renderer,
+const spark =
+  new SparkRenderer({
 
-    // On garde le LOD actif
-    enableLod: true,
+    renderer,
 
-    // compromis qualité / performance
-    lodSplatScale: 1.0,
+    maxStdDev:
+      Math.sqrt(4)
 
-    // évite de gaspiller du rendu
-    lodRenderScale: 1.5,
+  });
 
-    maxStdDev: Math.sqrt(4)
-});
 
 scene.add(spark);
 
 
-// ======================================================
-// MANOIR
-// ======================================================
+// =====================================================
+// TON SPZ
+// =====================================================
 
-const mansion = new SplatMesh({
+const mansion =
+  new SplatMesh({
 
     url:
-    "https://pub-95b1d37c5acf4cec9c0b743e39d67c63.r2.dev/test%20fatHaunted%20Mansion%20Stretching%20Room.spz",
+      "https://pub-95b1d37c5acf4cec9c0b743e39d67c63.r2.dev/test%20fatHaunted%20Mansion%20Stretching%20Room.spz",
 
-    lod: true
-});
+    lod:true
+
+  });
+
 
 scene.add(mansion);
 
 
-// ======================================================
-// CLAVIER
-// ======================================================
+// =====================================================
+// STATUS
+// =====================================================
 
-const keys = {};
+const status =
+  document.getElementById(
+    "status"
+  );
 
-window.addEventListener("keydown", (e) => {
+const vrButton =
+  document.getElementById(
+    "vrButton"
+  );
 
-    keys[e.code] = true;
-
-    // empêche les flèches de faire défiler la page
-    if (e.code.startsWith("Arrow")) {
-        e.preventDefault();
-    }
-});
-
-window.addEventListener("keyup", (e) => {
-    keys[e.code] = false;
-});
-
-
-// ======================================================
-// SOURIS / TACTILE
-// ======================================================
-
-let dragging = false;
-let lastX = 0;
-let lastY = 0;
-
-
-renderer.domElement.addEventListener(
-    "pointerdown",
-    (e) => {
-
-        dragging = true;
-
-        lastX = e.clientX;
-        lastY = e.clientY;
-
-        renderer.domElement.setPointerCapture(
-            e.pointerId
-        );
-    }
-);
-
-
-renderer.domElement.addEventListener(
-    "pointerup",
-    (e) => {
-
-        dragging = false;
-
-        try {
-            renderer.domElement.releasePointerCapture(
-                e.pointerId
-            );
-        } catch {}
-    }
-);
-
-
-renderer.domElement.addEventListener(
-    "pointermove",
-    (e) => {
-
-        if (!dragging) return;
-
-        const dx = e.clientX - lastX;
-        const dy = e.clientY - lastY;
-
-        lastX = e.clientX;
-        lastY = e.clientY;
-
-        yaw -= dx * 0.004;
-        pitch -= dy * 0.004;
-
-        pitch = THREE.MathUtils.clamp(
-            pitch,
-            -1.45,
-            1.45
-        );
-    }
-);
-
-
-// ======================================================
-// GAMEPAD
-// ======================================================
-
-let gamepadName = "aucune";
-
-window.addEventListener(
-    "gamepadconnected",
-    (e) => {
-
-        gamepadName =
-            e.gamepad.id || "manette";
-
-        console.log(
-            "MANETTE CONNECTÉE:",
-            gamepadName
-        );
-    }
-);
-
-
-window.addEventListener(
-    "gamepaddisconnected",
-    () => {
-
-        gamepadName = "aucune";
-    }
-);
-
-
-// Dead zone stick
-
-function deadzone(value, threshold = 0.15) {
-
-    if (Math.abs(value) < threshold)
-        return 0;
-
-    return value;
-}
-
-
-// ======================================================
-// CHARGEMENT
-// ======================================================
 
 let loaded = false;
 
+let gamepadName =
+  "aucune";
+
+
+// =====================================================
+// CHARGEMENT SPARK LOD
+// =====================================================
+
 try {
 
-    await mansion.initialized;
+  await mansion.initialized;
 
-    loaded = true;
+  loaded = true;
 
-    console.log(
-        "MANOIR + LOD TERMINÉS"
-    );
+  status.innerHTML =
+    "✅ Manoir chargé<br>" +
+    "LOD Spark actif";
 
-} catch (error) {
+}
+
+catch(error) {
+
+  console.error(
+    "Erreur SPZ:",
+    error
+  );
+
+  status.textContent =
+    "ERREUR SPZ";
+
+}
+
+
+// =====================================================
+// TEST WEBXR
+// =====================================================
+
+let xrSupported = false;
+
+
+if (
+  navigator.xr
+) {
+
+  try {
+
+    xrSupported =
+      await navigator.xr
+        .isSessionSupported(
+          "immersive-vr"
+        );
+
+  }
+
+  catch(error) {
 
     console.error(
-        "ERREUR SPZ:",
+      "Test WebXR:",
+      error
+    );
+
+  }
+
+}
+
+
+if (
+  xrSupported
+) {
+
+  vrButton.style.display =
+    "block";
+
+}
+
+else {
+
+  status.innerHTML +=
+    "<br>❌ immersive-vr indisponible";
+
+}
+
+
+// =====================================================
+// ENTER VR
+// =====================================================
+
+vrButton.addEventListener(
+  "click",
+  async () => {
+
+    try {
+
+      const session =
+        await navigator.xr.requestSession(
+          "immersive-vr",
+          {
+            optionalFeatures:[
+              "local-floor",
+              "bounded-floor",
+              "hand-tracking"
+            ]
+          }
+        );
+
+
+      renderer.xr.setSession(
+        session
+      );
+
+
+      vrButton.style.display =
+        "none";
+
+
+      status.innerHTML =
+        "🥽 VR active";
+
+
+      session.addEventListener(
+        "end",
+        () => {
+
+          vrButton.style.display =
+            "block";
+
+        }
+      );
+
+    }
+
+    catch(error) {
+
+      console.error(
+        "ENTER VR:",
         error
-    );
-}
+      );
 
+      status.innerHTML =
+        "❌ Impossible d'entrer en VR";
 
-// ======================================================
-// MOUVEMENT
-// ======================================================
-
-function updateMovement(dt) {
-
-    let forwardInput = 0;
-    let sideInput = 0;
-    let verticalInput = 0;
-
-    let fast = false;
-
-
-    // ------------------------------
-    // CLAVIER AZERTY + QWERTY
-    // ------------------------------
-
-    if (
-        keys["KeyW"] ||
-        keys["KeyZ"] ||
-        keys["ArrowUp"]
-    ) {
-        forwardInput += 1;
     }
 
-    if (
-        keys["KeyS"] ||
-        keys["ArrowDown"]
-    ) {
-        forwardInput -= 1;
-    }
-
-    if (
-        keys["KeyA"] ||
-        keys["KeyQ"] ||
-        keys["ArrowLeft"]
-    ) {
-        sideInput -= 1;
-    }
-
-    if (
-        keys["KeyD"] ||
-        keys["ArrowRight"]
-    ) {
-        sideInput += 1;
-    }
-
-    if (keys["KeyE"]) {
-        verticalInput += 1;
-    }
-
-    if (keys["KeyC"]) {
-        verticalInput -= 1;
-    }
-
-    if (
-        keys["ShiftLeft"] ||
-        keys["ShiftRight"]
-    ) {
-        fast = true;
-    }
-
-
-    // ------------------------------
-    // XBOX / GAMEPAD
-    // ------------------------------
-
-    const pads = navigator.getGamepads
-        ? navigator.getGamepads()
-        : [];
-
-
-    let pad = null;
-
-    for (const p of pads) {
-
-        if (p && p.connected) {
-            pad = p;
-            break;
-        }
-    }
-
-
-    if (pad) {
-
-        gamepadName =
-            pad.id || "manette";
-
-        // Xbox standard :
-        // axes 0/1 = stick gauche
-        // axes 2/3 = stick droit
-
-        const lx =
-            deadzone(pad.axes[0] || 0);
-
-        const ly =
-            deadzone(pad.axes[1] || 0);
-
-        const rx =
-            deadzone(pad.axes[2] || 0);
-
-        const ry =
-            deadzone(pad.axes[3] || 0);
-
-
-        sideInput += lx;
-
-        forwardInput += -ly;
-
-
-        // stick droit = regarder
-
-        yaw -= rx * dt * 2.4;
-
-        pitch -= ry * dt * 2.0;
-
-        pitch = THREE.MathUtils.clamp(
-            pitch,
-            -1.45,
-            1.45
-        );
-
-
-        // gâchette droite / bouton 7
-        // accélération
-
-        if (
-            pad.buttons[7] &&
-            pad.buttons[7].value > 0.25
-        ) {
-            fast = true;
-        }
-
-
-        // boutons épaules :
-        // monter / descendre
-
-        if (
-            pad.buttons[5] &&
-            pad.buttons[5].pressed
-        ) {
-            verticalInput += 1;
-        }
-
-        if (
-            pad.buttons[4] &&
-            pad.buttons[4].pressed
-        ) {
-            verticalInput -= 1;
-        }
-    }
-
-
-    // ==================================================
-    // ORIENTATION
-    // ==================================================
-
-    localFrame.rotation.y = yaw;
-
-    camera.rotation.x = pitch;
-
-
-    // ==================================================
-    // DÉPLACEMENT
-    // ==================================================
-
-    const speed =
-        fast ? 8.0 : 2.5;
-
-
-    const forward =
-        new THREE.Vector3(
-            -Math.sin(yaw),
-            0,
-            -Math.cos(yaw)
-        );
-
-
-    const right =
-        new THREE.Vector3(
-            Math.cos(yaw),
-            0,
-            -Math.sin(yaw)
-        );
-
-
-    localFrame.position.addScaledVector(
-        forward,
-        forwardInput * speed * dt
-    );
-
-
-    localFrame.position.addScaledVector(
-        right,
-        sideInput * speed * dt
-    );
-
-
-    localFrame.position.y +=
-        verticalInput * speed * dt;
-}
-
-
-// ======================================================
-// DEBUG VISUEL
-// ======================================================
-
-const status =
-    document.getElementById("status");
-
-
-function updateStatus() {
-
-    const p =
-        localFrame.position;
-
-    status.innerHTML =
-
-        (loaded
-            ? "✅ Manoir + LOD actif"
-            : "⏳ Construction du LOD...")
-
-        + "<br>🎮 Xbox : "
-        + gamepadName
-
-        + "<br>📍 X "
-        + p.x.toFixed(2)
-
-        + " &nbsp; Y "
-        + p.y.toFixed(2)
-
-        + " &nbsp; Z "
-        + p.z.toFixed(2);
-}
-
-
-// ======================================================
-// RESIZE
-// ======================================================
-
-window.addEventListener(
-    "resize",
-    () => {
-
-        camera.aspect =
-            window.innerWidth /
-            window.innerHeight;
-
-        camera.updateProjectionMatrix();
-
-        renderer.setSize(
-            window.innerWidth,
-            window.innerHeight
-        );
-    }
+  }
 );
 
 
-// ======================================================
-// BOUCLE
-// ======================================================
+// =====================================================
+// XBOX / GAMEPAD
+// =====================================================
+
+function deadzone(
+  value,
+  threshold = 0.16
+) {
+
+  if (
+    Math.abs(value) <
+    threshold
+  ) {
+
+    return 0;
+
+  }
+
+  return value;
+
+}
+
+
+function findGamepad() {
+
+  if (
+    !navigator.getGamepads
+  ) {
+
+    return null;
+
+  }
+
+
+  const pads =
+    navigator.getGamepads();
+
+
+  for (
+    const pad of pads
+  ) {
+
+    if (
+      pad &&
+      pad.connected
+    ) {
+
+      return pad;
+
+    }
+
+  }
+
+
+  return null;
+
+}
+
+
+// =====================================================
+// MOUVEMENT DU WAGON
+// =====================================================
+
+function updateXbox(
+  dt
+) {
+
+  const pad =
+    findGamepad();
+
+
+  if (
+    !pad
+  ) {
+
+    gamepadName =
+      "aucune";
+
+    return;
+
+  }
+
+
+  gamepadName =
+    pad.id ||
+    "Gamepad";
+
+
+  // Xbox standard :
+  //
+  // axes 0 = stick gauche X
+  // axes 1 = stick gauche Y
+  //
+  // axes 2 = stick droit X
+  // axes 3 = stick droit Y
+
+
+  const lx =
+    deadzone(
+      pad.axes[0] || 0
+    );
+
+
+  const ly =
+    deadzone(
+      pad.axes[1] || 0
+    );
+
+
+  const rx =
+    deadzone(
+      pad.axes[2] || 0
+    );
+
+
+  // ===================================================
+  // VITESSE
+  // ===================================================
+
+  let speed =
+    2.0;
+
+
+  // gâchette droite =
+  // déplacement rapide
+
+  if (
+    pad.buttons[7] &&
+    pad.buttons[7].value > 0.20
+  ) {
+
+    speed =
+      6.0;
+
+  }
+
+
+  // ===================================================
+  // ROTATION DU WAGON
+  //
+  // IMPORTANT :
+  //
+  // On ne tourne PAS la caméra XR.
+  //
+  // Le stick droit tourne uniquement
+  // le wagon.
+  //
+  // Ta tête reste totalement libre.
+  // ===================================================
+
+  wagon.rotation.y -=
+    rx *
+    1.5 *
+    dt;
+
+
+  // ===================================================
+  // DIRECTIONS DU WAGON
+  // ===================================================
+
+  const yaw =
+    wagon.rotation.y;
+
+
+  const forward =
+    new THREE.Vector3(
+
+      -Math.sin(yaw),
+
+      0,
+
+      -Math.cos(yaw)
+
+    );
+
+
+  const right =
+    new THREE.Vector3(
+
+      Math.cos(yaw),
+
+      0,
+
+      -Math.sin(yaw)
+
+    );
+
+
+  // Stick gauche vertical =
+  // avant / arrière
+
+  wagon.position.addScaledVector(
+
+    forward,
+
+    -ly *
+    speed *
+    dt
+
+  );
+
+
+  // Stick gauche horizontal =
+  // déplacement latéral
+
+  wagon.position.addScaledVector(
+
+    right,
+
+    lx *
+    speed *
+    dt
+
+  );
+
+
+  // ===================================================
+  // BOUTONS LB / RB
+  //
+  // Pour le diagnostic :
+  //
+  // LB = descendre
+  // RB = monter
+  // ===================================================
+
+  if (
+    pad.buttons[4] &&
+    pad.buttons[4].pressed
+  ) {
+
+    wagon.position.y -=
+      speed *
+      dt;
+
+  }
+
+
+  if (
+    pad.buttons[5] &&
+    pad.buttons[5].pressed
+  ) {
+
+    wagon.position.y +=
+      speed *
+      dt;
+
+  }
+
+}
+
+
+// =====================================================
+// DEBUG HORS VR
+// =====================================================
+
+function updateStatus() {
+
+  if (
+    renderer.xr.isPresenting
+  ) {
+
+    return;
+
+  }
+
+
+  const p =
+    wagon.position;
+
+
+  status.innerHTML =
+
+    (loaded
+      ? "✅ Manoir + LOD actif"
+      : "⏳ LOD en construction")
+
+    +
+
+    "<br>🎮 " +
+    gamepadName
+
+    +
+
+    "<br>Wagon : "
+
+    +
+
+    p.x.toFixed(2) +
+    " / " +
+
+    p.y.toFixed(2) +
+    " / " +
+
+    p.z.toFixed(2);
+
+}
+
+
+// =====================================================
+// RESIZE
+// =====================================================
+
+window.addEventListener(
+  "resize",
+  () => {
+
+    camera.aspect =
+      window.innerWidth /
+      window.innerHeight;
+
+
+    camera.updateProjectionMatrix();
+
+
+    renderer.setSize(
+
+      window.innerWidth,
+
+      window.innerHeight
+
+    );
+
+  }
+);
+
+
+// =====================================================
+// BOUCLE PRINCIPALE
+// =====================================================
 
 const clock =
-    new THREE.Clock();
+  new THREE.Clock();
 
 
-renderer.setAnimationLoop(() => {
+renderer.setAnimationLoop(
+  () => {
 
     const dt =
-        Math.min(
-            clock.getDelta(),
-            0.05
-        );
+      Math.min(
+        clock.getDelta(),
+        0.05
+      );
 
 
-    updateMovement(dt);
+    // Xbox fonctionne aussi
+    // pendant la session Vision Pro.
+
+    updateXbox(
+      dt
+    );
+
 
     updateStatus();
 
 
     renderer.render(
-        scene,
-        camera
+      scene,
+      camera
     );
-});
+
+  }
+);
 
 </script>
 
