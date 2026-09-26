@@ -31,7 +31,7 @@ canvas {
   z-index: 20;
   padding: 10px 14px;
   color: white;
-  background: rgba(0,0,0,.70);
+  background: rgba(0,0,0,.72);
   border-radius: 8px;
   line-height: 1.45;
   pointer-events: none;
@@ -43,9 +43,9 @@ canvas {
   left: 50%;
   transform: translateX(-50%);
   z-index: 20;
-  padding: 9px 14px;
+  padding: 10px 14px;
   color: white;
-  background: rgba(0,0,0,.70);
+  background: rgba(0,0,0,.72);
   border-radius: 8px;
   text-align: center;
   pointer-events: none;
@@ -65,14 +65,33 @@ canvas {
   color: black;
   display: none;
 }
+
+#crosshair {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  margin-top: -3px;
+  border-radius: 50%;
+  background: white;
+  z-index: 20;
+  pointer-events: none;
+}
 </style>
 
 <script type="importmap">
 {
   "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
-    "@sparkjsdev/spark": "https://sparkjs.dev/releases/spark/2.2.0/spark.module.js"
+    "three":
+      "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+
+    "three/addons/":
+      "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+
+    "@sparkjsdev/spark":
+      "https://sparkjs.dev/releases/spark/2.2.0/spark.module.js"
   }
 }
 </script>
@@ -83,11 +102,14 @@ canvas {
 <div id="status">Chargement du manoir...</div>
 
 <div id="help">
-  PC : ZQSD/WASD • clic + glisser • Shift = rapide<br>
-  Xbox : stick gauche = déplacement • stick droit = rotation
+  PC : ZQSD / WASD • souris : clic + glisser • Shift : rapide<br>
+  Xbox : stick gauche = déplacement • stick droit = tourner • RT = rapide
 </div>
 
+<div id="crosshair"></div>
+
 <button id="vrButton">ENTER VR</button>
+
 
 <script type="module">
 
@@ -99,19 +121,28 @@ import {
 } from "@sparkjsdev/spark";
 
 
-// =====================================================
+// ======================================================
 // SCÈNE
-// =====================================================
+// ======================================================
 
 const scene = new THREE.Scene();
 
 
-// =====================================================
+// ======================================================
 // WAGON / XR RIG
-// =====================================================
+//
+// Tout le déplacement se fait avec ce groupe.
+// La caméra reste enfant du wagon.
+//
+// En VR :
+// le wagon se déplace,
+// mais le Vision Pro garde le contrôle de la tête.
+// ======================================================
 
 const wagon = new THREE.Group();
+
 scene.add(wagon);
+
 
 const camera = new THREE.PerspectiveCamera(
   75,
@@ -120,59 +151,92 @@ const camera = new THREE.PerspectiveCamera(
   2000
 );
 
+
 wagon.add(camera);
 
-wagon.position.set(0, 0, 3);
 
-// Hauteur des yeux hors VR
-camera.position.set(0, 1.6, 0);
+// Position de départ
+
+wagon.position.set(
+  0,
+  0,
+  3
+);
+
+
+// Hauteur PC hors VR
+
+camera.position.set(
+  0,
+  1.6,
+  0
+);
+
+
+// Orientation du wagon / regard PC
 
 let yaw = 0;
 let pitch = 0;
 
 
-// =====================================================
+// ======================================================
 // RENDERER
-// =====================================================
+// ======================================================
 
 const renderer = new THREE.WebGLRenderer({
+
   antialias: false,
-  powerPreference: "high-performance"
+
+  powerPreference:
+    "high-performance"
+
 });
 
+
 renderer.setPixelRatio(1);
+
 
 renderer.setSize(
   window.innerWidth,
   window.innerHeight
 );
 
+
+// WebXR
+
 renderer.xr.enabled = true;
+
 
 renderer.xr.setReferenceSpaceType(
   "local-floor"
 );
+
 
 document.body.appendChild(
   renderer.domElement
 );
 
 
-// =====================================================
+// ======================================================
 // SPARK
-// =====================================================
+// ======================================================
 
 const spark = new SparkRenderer({
+
   renderer,
-  maxStdDev: Math.sqrt(4)
+
+  maxStdDev:
+    Math.sqrt(4)
+
 });
+
 
 scene.add(spark);
 
 
-// =====================================================
-// MANOIR + LOD
-// =====================================================
+// ======================================================
+// MANOIR SPZ + LOD
+// ======================================================
 
 const mansion = new SplatMesh({
 
@@ -183,191 +247,358 @@ const mansion = new SplatMesh({
 
 });
 
+
 scene.add(mansion);
 
 
-// =====================================================
-// ORIENTATION DU MANOIR
+// ======================================================
+// ORIENTATION DU MONDE
 //
 // IMPORTANT :
-// l'export est inversé haut/bas.
-// Rotation de 180° autour de Z.
+// je ne force PLUS ici X/Z/Y à 180°,
+// puisque les essais précédents n'ont pas résolu
+// correctement ton inversion.
 //
-// NE PAS ajouter rotation.x = Math.PI.
-// =====================================================
+// On corrigera UNIQUEMENT ces 3 valeurs
+// après avoir confirmé les contrôles.
+//
+// 0 = aucune rotation.
+// ======================================================
+
+const WORLD_ROTATION_X = 0;
+const WORLD_ROTATION_Y = 0;
+const WORLD_ROTATION_Z = 0;
+
 
 mansion.rotation.set(
-  0,
-  0,
-  Math.PI
+
+  THREE.MathUtils.degToRad(
+    WORLD_ROTATION_X
+  ),
+
+  THREE.MathUtils.degToRad(
+    WORLD_ROTATION_Y
+  ),
+
+  THREE.MathUtils.degToRad(
+    WORLD_ROTATION_Z
+  )
+
 );
 
 
-// =====================================================
+// ======================================================
 // INTERFACE
-// =====================================================
+// ======================================================
 
 const status =
-  document.getElementById("status");
+  document.getElementById(
+    "status"
+  );
+
 
 const help =
-  document.getElementById("help");
+  document.getElementById(
+    "help"
+  );
+
 
 const vrButton =
-  document.getElementById("vrButton");
+  document.getElementById(
+    "vrButton"
+  );
+
+
+const crosshair =
+  document.getElementById(
+    "crosshair"
+  );
+
 
 let loaded = false;
-let gamepadName = "aucune";
+
+let gamepadName =
+  "aucune";
 
 
-// =====================================================
+// ======================================================
 // CLAVIER
-// =====================================================
+// ======================================================
 
 const keys = {};
 
+
 window.addEventListener(
   "keydown",
-  (e) => {
+  (event) => {
 
-    keys[e.code] = true;
+    keys[event.code] = true;
 
-    if (e.code.startsWith("Arrow")) {
-      e.preventDefault();
+
+    if (
+      event.code.startsWith(
+        "Arrow"
+      )
+    ) {
+
+      event.preventDefault();
+
     }
 
   }
 );
 
+
 window.addEventListener(
   "keyup",
-  (e) => {
+  (event) => {
 
-    keys[e.code] = false;
+    keys[event.code] = false;
 
   }
 );
 
 
-// =====================================================
-// SOURIS / TACTILE
-// =====================================================
+// ======================================================
+// SOURIS + TACTILE
+//
+// C'est le système clic-glissé de la version
+// qui fonctionnait chez toi.
+// ======================================================
 
 let dragging = false;
+
 let lastX = 0;
 let lastY = 0;
 
+
 renderer.domElement.addEventListener(
   "pointerdown",
-  (e) => {
+  (event) => {
+
+    // En VR, on laisse WebXR gérer.
+    if (
+      renderer.xr.isPresenting
+    ) {
+      return;
+    }
+
 
     dragging = true;
 
-    lastX = e.clientX;
-    lastY = e.clientY;
+    lastX =
+      event.clientX;
 
-    renderer.domElement.setPointerCapture(
-      e.pointerId
-    );
+    lastY =
+      event.clientY;
 
-  }
-);
-
-renderer.domElement.addEventListener(
-  "pointerup",
-  (e) => {
-
-    dragging = false;
 
     try {
 
-      renderer.domElement.releasePointerCapture(
-        e.pointerId
-      );
+      renderer.domElement
+        .setPointerCapture(
+          event.pointerId
+        );
 
-    } catch {}
+    }
+
+    catch {}
 
   }
 );
+
+
+renderer.domElement.addEventListener(
+  "pointerup",
+  (event) => {
+
+    dragging = false;
+
+
+    try {
+
+      renderer.domElement
+        .releasePointerCapture(
+          event.pointerId
+        );
+
+    }
+
+    catch {}
+
+  }
+);
+
+
+renderer.domElement.addEventListener(
+  "pointercancel",
+  () => {
+
+    dragging = false;
+
+  }
+);
+
 
 renderer.domElement.addEventListener(
   "pointermove",
-  (e) => {
+  (event) => {
 
-    if (!dragging) return;
+    if (
+      !dragging ||
+      renderer.xr.isPresenting
+    ) {
+
+      return;
+
+    }
+
 
     const dx =
-      e.clientX - lastX;
+      event.clientX -
+      lastX;
+
 
     const dy =
-      e.clientY - lastY;
+      event.clientY -
+      lastY;
 
-    lastX = e.clientX;
-    lastY = e.clientY;
 
-    yaw -= dx * 0.004;
-    pitch -= dy * 0.004;
+    lastX =
+      event.clientX;
 
-    pitch = THREE.MathUtils.clamp(
-      pitch,
-      -1.45,
-      1.45
-    );
+
+    lastY =
+      event.clientY;
+
+
+    yaw -=
+      dx * 0.004;
+
+
+    pitch -=
+      dy * 0.004;
+
+
+    pitch =
+      THREE.MathUtils.clamp(
+
+        pitch,
+
+        -1.45,
+
+        1.45
+
+      );
 
   }
 );
 
 
-// =====================================================
-// GAMEPAD
-// =====================================================
+// ======================================================
+// XBOX / GAMEPAD
+// ======================================================
 
 function deadzone(
   value,
   threshold = 0.16
 ) {
 
-  return Math.abs(value) < threshold
-    ? 0
-    : value;
+  if (
+    Math.abs(value) <
+    threshold
+  ) {
+
+    return 0;
+
+  }
+
+
+  return value;
 
 }
 
 
 function findGamepad() {
 
-  if (!navigator.getGamepads) {
+  if (
+    !navigator.getGamepads
+  ) {
+
     return null;
+
   }
+
 
   const pads =
     navigator.getGamepads();
 
-  for (const pad of pads) {
 
-    if (pad && pad.connected) {
+  for (
+    const pad of pads
+  ) {
+
+    if (
+      pad &&
+      pad.connected
+    ) {
+
       return pad;
+
     }
 
   }
+
 
   return null;
 
 }
 
 
-// =====================================================
-// CHARGEMENT
-// =====================================================
+window.addEventListener(
+  "gamepadconnected",
+  (event) => {
+
+    gamepadName =
+      event.gamepad.id ||
+      "Gamepad";
+
+
+    console.log(
+      "Xbox/Gamepad connecté:",
+      gamepadName
+    );
+
+  }
+);
+
+
+window.addEventListener(
+  "gamepaddisconnected",
+  () => {
+
+    gamepadName =
+      "aucune";
+
+  }
+);
+
+
+// ======================================================
+// CHARGEMENT SPZ + LOD
+// ======================================================
 
 try {
 
   await mansion.initialized;
 
+
   loaded = true;
 
+
   status.innerHTML =
-    "✅ Manoir chargé<br>LOD Spark actif";
+    "✅ Manoir chargé<br>" +
+    "LOD Spark actif";
 
 }
 
@@ -378,33 +609,39 @@ catch(error) {
     error
   );
 
+
   status.innerHTML =
     "❌ ERREUR SPZ";
 
 }
 
 
-// =====================================================
+// ======================================================
 // WEBXR
-// =====================================================
+// ======================================================
 
 let xrSupported = false;
 
-if (navigator.xr) {
+
+if (
+  navigator.xr
+) {
 
   try {
 
     xrSupported =
-      await navigator.xr.isSessionSupported(
-        "immersive-vr"
-      );
+
+      await navigator.xr
+        .isSessionSupported(
+          "immersive-vr"
+        );
 
   }
 
   catch(error) {
 
     console.error(
-      "WebXR:",
+      "Détection WebXR:",
       error
     );
 
@@ -413,17 +650,27 @@ if (navigator.xr) {
 }
 
 
-if (xrSupported) {
+if (
+  xrSupported
+) {
 
   vrButton.style.display =
     "block";
 
 }
 
+else {
 
-// =====================================================
+  console.log(
+    "immersive-vr non disponible sur cet appareil"
+  );
+
+}
+
+
+// ======================================================
 // ENTER VR
-// =====================================================
+// ======================================================
 
 vrButton.addEventListener(
   "click",
@@ -432,28 +679,45 @@ vrButton.addEventListener(
     try {
 
       const session =
-        await navigator.xr.requestSession(
-          "immersive-vr",
-          {
-            optionalFeatures: [
-              "local-floor",
-              "bounded-floor",
-              "hand-tracking"
-            ]
-          }
+
+        await navigator.xr
+          .requestSession(
+            "immersive-vr",
+            {
+
+              optionalFeatures: [
+
+                "local-floor",
+
+                "bounded-floor",
+
+                "hand-tracking"
+
+              ]
+
+            }
+          );
+
+
+      await renderer.xr
+        .setSession(
+          session
         );
 
-      await renderer.xr.setSession(
-        session
-      );
 
       vrButton.style.display =
         "none";
 
+
       status.style.display =
         "none";
 
+
       help.style.display =
+        "none";
+
+
+      crosshair.style.display =
         "none";
 
 
@@ -464,11 +728,23 @@ vrButton.addEventListener(
           status.style.display =
             "block";
 
+
           help.style.display =
             "block";
 
-          vrButton.style.display =
+
+          crosshair.style.display =
             "block";
+
+
+          if (
+            xrSupported
+          ) {
+
+            vrButton.style.display =
+              "block";
+
+          }
 
         }
       );
@@ -478,9 +754,10 @@ vrButton.addEventListener(
     catch(error) {
 
       console.error(
-        "ENTER VR:",
+        "Erreur ENTER VR:",
         error
       );
+
 
       status.innerHTML =
         "❌ Impossible d'entrer en VR";
@@ -491,28 +768,40 @@ vrButton.addEventListener(
 );
 
 
-// =====================================================
+// ======================================================
 // DÉPLACEMENT
-// =====================================================
+//
+// PC + Xbox utilisent exactement le même wagon.
+// ======================================================
 
-function updateMovement(dt) {
+function updateMovement(
+  deltaTime
+) {
 
   let forwardInput = 0;
+
   let sideInput = 0;
+
   let verticalInput = 0;
+
   let turnInput = 0;
+
 
   let speed = 2.5;
 
 
-  // -------------------------
-  // CLAVIER
-  // -------------------------
+  // ----------------------------------------------------
+  // CLAVIER AZERTY + QWERTY
+  // ----------------------------------------------------
 
   if (
+
     keys["KeyW"] ||
+
     keys["KeyZ"] ||
+
     keys["ArrowUp"]
+
   ) {
 
     forwardInput += 1;
@@ -521,8 +810,11 @@ function updateMovement(dt) {
 
 
   if (
+
     keys["KeyS"] ||
+
     keys["ArrowDown"]
+
   ) {
 
     forwardInput -= 1;
@@ -531,9 +823,13 @@ function updateMovement(dt) {
 
 
   if (
+
     keys["KeyA"] ||
+
     keys["KeyQ"] ||
+
     keys["ArrowLeft"]
+
   ) {
 
     sideInput -= 1;
@@ -542,8 +838,11 @@ function updateMovement(dt) {
 
 
   if (
+
     keys["KeyD"] ||
+
     keys["ArrowRight"]
+
   ) {
 
     sideInput += 1;
@@ -551,23 +850,36 @@ function updateMovement(dt) {
   }
 
 
-  if (keys["KeyE"]) {
+  // Monter
+
+  if (
+    keys["KeyE"]
+  ) {
 
     verticalInput += 1;
 
   }
 
 
-  if (keys["KeyC"]) {
+  // Descendre
+
+  if (
+    keys["KeyC"]
+  ) {
 
     verticalInput -= 1;
 
   }
 
 
+  // Sprint
+
   if (
+
     keys["ShiftLeft"] ||
+
     keys["ShiftRight"]
+
   ) {
 
     speed = 7;
@@ -575,50 +887,66 @@ function updateMovement(dt) {
   }
 
 
-  // -------------------------
+  // ----------------------------------------------------
   // XBOX
-  // -------------------------
+  // ----------------------------------------------------
 
   const pad =
     findGamepad();
 
 
-  if (pad) {
+  if (
+    pad
+  ) {
 
     gamepadName =
-      pad.id || "Gamepad";
+      pad.id ||
+      "Gamepad";
 
 
-    const lx =
+    // Stick gauche
+
+    const leftX =
       deadzone(
         pad.axes[0] || 0
       );
 
 
-    const ly =
+    const leftY =
       deadzone(
         pad.axes[1] || 0
       );
 
 
-    const rx =
+    // Stick droit horizontal
+
+    const rightX =
       deadzone(
         pad.axes[2] || 0
       );
 
 
-    sideInput += lx;
-
-    forwardInput += -ly;
-
-    turnInput += rx;
+    sideInput +=
+      leftX;
 
 
-    // gâchette droite = rapide
+    forwardInput +=
+      -leftY;
+
+
+    turnInput +=
+      rightX;
+
+
+    // RT = rapide
 
     if (
+
       pad.buttons[7] &&
-      pad.buttons[7].value > 0.20
+
+      pad.buttons[7].value >
+      0.20
+
     ) {
 
       speed = 7;
@@ -629,8 +957,11 @@ function updateMovement(dt) {
     // LB = descendre
 
     if (
+
       pad.buttons[4] &&
+
       pad.buttons[4].pressed
+
     ) {
 
       verticalInput -= 1;
@@ -641,8 +972,11 @@ function updateMovement(dt) {
     // RB = monter
 
     if (
+
       pad.buttons[5] &&
+
       pad.buttons[5].pressed
+
     ) {
 
       verticalInput += 1;
@@ -659,24 +993,37 @@ function updateMovement(dt) {
   }
 
 
-  // -------------------------
-  // ROTATION DU WAGON
-  // -------------------------
+  // ----------------------------------------------------
+  // ROTATION HORIZONTALE DU WAGON
+  //
+  // Souris PC modifie déjà yaw.
+  // Xbox ajoute turnInput.
+  //
+  // En VR :
+  // le Vision Pro garde son tracking de tête.
+  // ----------------------------------------------------
 
   yaw -=
+
     turnInput *
+
     1.7 *
-    dt;
+
+    deltaTime;
 
 
   wagon.rotation.y =
     yaw;
 
 
-  // Souris verticale uniquement hors VR.
-  // En VR : le Vision Pro contrôle la tête.
+  // Regard vertical PC uniquement.
+  //
+  // NE PAS imposer cette rotation
+  // pendant une session XR.
 
-  if (!renderer.xr.isPresenting) {
+  if (
+    !renderer.xr.isPresenting
+  ) {
 
     camera.rotation.x =
       pitch;
@@ -684,70 +1031,99 @@ function updateMovement(dt) {
   }
 
 
-  // -------------------------
-  // DIRECTION
-  // -------------------------
+  // ----------------------------------------------------
+  // DIRECTION DU WAGON
+  // ----------------------------------------------------
 
   const forward =
     new THREE.Vector3(
+
       -Math.sin(yaw),
+
       0,
+
       -Math.cos(yaw)
+
     );
 
 
   const right =
     new THREE.Vector3(
+
       Math.cos(yaw),
+
       0,
+
       -Math.sin(yaw)
+
     );
 
 
-  wagon.position.addScaledVector(
-    forward,
-    forwardInput *
-    speed *
-    dt
-  );
+  wagon.position
+    .addScaledVector(
+
+      forward,
+
+      forwardInput *
+      speed *
+      deltaTime
+
+    );
 
 
-  wagon.position.addScaledVector(
-    right,
-    sideInput *
-    speed *
-    dt
-  );
+  wagon.position
+    .addScaledVector(
+
+      right,
+
+      sideInput *
+      speed *
+      deltaTime
+
+    );
 
 
   wagon.position.y +=
+
     verticalInput *
+
     speed *
-    dt;
+
+    deltaTime;
 
 }
 
 
-// =====================================================
-// STATUS HORS VR
-// =====================================================
+// ======================================================
+// DEBUG / COORDONNÉES
+//
+// Très utile ensuite pour poser les points du rail.
+// ======================================================
 
 function updateStatus() {
 
-  if (renderer.xr.isPresenting) {
+  if (
+    renderer.xr.isPresenting
+  ) {
+
     return;
+
   }
 
 
-  const p =
+  const position =
     wagon.position;
 
 
   status.innerHTML =
 
-    (loaded
+    (
+      loaded
+
       ? "✅ Manoir + LOD actif"
-      : "⏳ Construction LOD...")
+
+      : "⏳ Construction LOD..."
+    )
 
     +
 
@@ -757,47 +1133,62 @@ function updateStatus() {
     +
 
     "<br>📍 X " +
-    p.x.toFixed(2)
+    position.x.toFixed(2)
 
     +
 
     " Y " +
-    p.y.toFixed(2)
+    position.y.toFixed(2)
 
     +
 
     " Z " +
-    p.z.toFixed(2);
+    position.z.toFixed(2)
+
+    +
+
+    "<br>↻ Yaw " +
+    THREE.MathUtils
+      .radToDeg(yaw)
+      .toFixed(1) +
+    "°";
 
 }
 
 
-// =====================================================
+// ======================================================
 // RESIZE
-// =====================================================
+// ======================================================
 
 window.addEventListener(
   "resize",
   () => {
 
     camera.aspect =
+
       window.innerWidth /
+
       window.innerHeight;
+
 
     camera.updateProjectionMatrix();
 
+
     renderer.setSize(
+
       window.innerWidth,
+
       window.innerHeight
+
     );
 
   }
 );
 
 
-// =====================================================
+// ======================================================
 // RENDER LOOP
-// =====================================================
+// ======================================================
 
 const clock =
   new THREE.Clock();
@@ -806,21 +1197,31 @@ const clock =
 renderer.setAnimationLoop(
   () => {
 
-    const dt =
+    const deltaTime =
+
       Math.min(
+
         clock.getDelta(),
+
         0.05
+
       );
 
 
-    updateMovement(dt);
+    updateMovement(
+      deltaTime
+    );
+
 
     updateStatus();
 
 
     renderer.render(
+
       scene,
+
       camera
+
     );
 
   }
